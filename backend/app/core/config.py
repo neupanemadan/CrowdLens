@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    APP_NAME: str = "Vision AI"
+    APP_NAME: str = "CrowdLens"
     DEBUG: bool = False
 
     DATABASE_URL: str = "sqlite:///./data/vision_ai.db"
