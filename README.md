@@ -1,4 +1,4 @@
-# VisionCount
+# CrowdLens
 
 AI-powered person detection and counting system. Upload an image and get back the number of people detected, annotated bounding boxes, and a full detection history.
 
