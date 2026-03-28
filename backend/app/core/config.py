@@ -17,7 +17,7 @@ class Settings(BaseSettings):
 
     YOLO_MODEL: str = "yolov8n.pt"
     CONFIDENCE_THRESHOLD: float = 0.5
-    PERSON_CLASS_ID: int = 0  # COCO class 0 = person
+    PERSON_CLASS_ID: int = 0  # COCO dataset class 0 = person
 
     API_V1_PREFIX: str = "/api/v1"
 
