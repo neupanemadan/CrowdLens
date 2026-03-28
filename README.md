@@ -8,6 +8,7 @@ AI-powered person detection and counting system. Upload an image and get back th
 - **Vision:** YOLOv8n (Ultralytics), OpenCV
 - **Database:** SQLite
 - **Frontend:** Vue 3, TypeScript, Pinia, Axios, Vue Router
+- **Linting:** Ruff, mypy (backend) · ESLint, Prettier (frontend)
 - **Deployment:** Docker, Docker Compose
 
 ## Project Structure
@@ -102,6 +103,25 @@ npm run dev
 ```
 
 The frontend will be available at `http://localhost:5173`.
+
+### Code Quality
+
+**Backend** (from `backend/`):
+
+```bash
+ruff check app/          # Lint
+ruff format app/         # Format
+mypy app/                # Type check
+```
+
+**Frontend** (from `frontend/`):
+
+```bash
+npm run lint             # ESLint check
+npm run lint:fix         # ESLint auto-fix
+npm run format:check     # Prettier check
+npm run format           # Prettier auto-format
+```
 
 ### Docker Setup
 
