@@ -15,8 +15,9 @@ export const useDetectionStore = defineStore('detection', () => {
     error.value = null
     try {
       currentDetection.value = await detectionApi.uploadImage(file)
-    } catch (err: any) {
-      error.value = err.response?.data?.detail || 'Upload failed'
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } }
+      error.value = e.response?.data?.detail || 'Upload failed'
       throw err
     } finally {
       isUploading.value = false
@@ -28,8 +29,9 @@ export const useDetectionStore = defineStore('detection', () => {
     error.value = null
     try {
       detections.value = await detectionApi.getAll()
-    } catch (err: any) {
-      error.value = err.response?.data?.detail || 'Failed to load detections'
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } }
+      error.value = e.response?.data?.detail || 'Failed to load detections'
     } finally {
       isLoading.value = false
     }
@@ -40,8 +42,9 @@ export const useDetectionStore = defineStore('detection', () => {
     error.value = null
     try {
       currentDetection.value = await detectionApi.getById(id)
-    } catch (err: any) {
-      error.value = err.response?.data?.detail || 'Failed to load detection'
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } }
+      error.value = e.response?.data?.detail || 'Failed to load detection'
     } finally {
       isLoading.value = false
     }

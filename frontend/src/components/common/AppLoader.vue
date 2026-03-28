@@ -30,7 +30,9 @@ const props = defineProps<{
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .loading p {

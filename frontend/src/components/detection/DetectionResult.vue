@@ -15,7 +15,10 @@ function formatDate(dateStr: string) {
 <template>
   <div class="result-card">
     <div class="result-image">
-      <img :src="`${mediaBase}/media/${props.detection.annotated_image_path.replace('uploads/', '')}`" alt="Annotated" />
+      <img
+        :src="`${mediaBase}/media/${props.detection.annotated_image_path.replace('uploads/', '')}`"
+        alt="Annotated"
+      />
     </div>
 
     <div class="result-info">
@@ -104,7 +107,8 @@ table {
   font-size: 0.85rem;
 }
 
-th, td {
+th,
+td {
   text-align: left;
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid #e2e8f0;

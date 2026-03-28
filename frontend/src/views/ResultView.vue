@@ -15,9 +15,7 @@ if (!store.currentDetection) {
   <div class="result-view">
     <div class="result-header">
       <h1>Detection Result</h1>
-      <button class="back-btn" @click="router.push({ name: 'upload' })">
-        Upload Another
-      </button>
+      <button class="back-btn" @click="router.push({ name: 'upload' })">Upload Another</button>
     </div>
 
     <DetectionResult v-if="store.currentDetection" :detection="store.currentDetection" />

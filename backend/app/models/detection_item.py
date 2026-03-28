@@ -1,7 +1,14 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.models.detection import Detection
 
 
 class DetectionItem(Base):
@@ -18,4 +25,4 @@ class DetectionItem(Base):
     x_max: Mapped[float] = mapped_column(Float, nullable=False)
     y_max: Mapped[float] = mapped_column(Float, nullable=False)
 
-    detection: Mapped["Detection"] = relationship("Detection", back_populates="items")
+    detection: Mapped[Detection] = relationship("Detection", back_populates="items")

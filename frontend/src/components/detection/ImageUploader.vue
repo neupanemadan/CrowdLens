@@ -50,7 +50,7 @@ defineExpose({ clearSelection })
       <p class="dropzone-or">or</p>
       <label class="dropzone-btn">
         Browse Files
-        <input type="file" accept="image/*" @change="handleInput" hidden />
+        <input hidden type="file" accept="image/*" @change="handleInput" />
       </label>
     </div>
     <div v-else class="preview">
@@ -67,7 +67,9 @@ defineExpose({ clearSelection })
   border-radius: 12px;
   padding: 2rem;
   text-align: center;
-  transition: border-color 0.2s, background 0.2s;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
   cursor: pointer;
 }
 

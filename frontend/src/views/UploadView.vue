@@ -38,11 +38,7 @@ async function handleUpload() {
 
     <AppLoader v-if="store.isUploading" text="Detecting people..." />
 
-    <button
-      v-if="selectedFile && !store.isUploading"
-      class="detect-btn"
-      @click="handleUpload"
-    >
+    <button v-if="selectedFile && !store.isUploading" class="detect-btn" @click="handleUpload">
       Detect People
     </button>
   </div>

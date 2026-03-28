@@ -20,7 +20,8 @@ class DetectionService:
         self._validate_image(file)
 
         file_bytes = await file.read()
-        stored_path = self.image_service.save_upload(file_bytes, file.filename)
+        filename = file.filename or "unknown"
+        stored_path = self.image_service.save_upload(file_bytes, filename)
 
         detections = yolo_detector.detect_persons(stored_path)
 
@@ -39,7 +40,7 @@ class DetectionService:
         ]
 
         detection = self.repository.create(
-            original_filename=file.filename,
+            original_filename=filename,
             stored_image_path=stored_path,
             annotated_image_path=annotated_path,
             person_count=len(detections),

@@ -20,9 +20,7 @@ onMounted(() => {
   <div class="detail-view">
     <div class="detail-header">
       <h1>Detection Detail</h1>
-      <button class="back-btn" @click="router.push({ name: 'history' })">
-        Back to History
-      </button>
+      <button class="back-btn" @click="router.push({ name: 'history' })">Back to History</button>
     </div>
 
     <AppLoader v-if="store.isLoading" text="Loading..." />

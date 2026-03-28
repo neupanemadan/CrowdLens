@@ -22,9 +22,7 @@ class ImageService:
         save_path.write_bytes(file_bytes)
         return str(save_path)
 
-    def annotate_image(
-        self, image_path: str, detections: list[DetectedObject]
-    ) -> str:
+    def annotate_image(self, image_path: str, detections: list[DetectedObject]) -> str:
         image = cv2.imread(image_path)
 
         for det in detections:
@@ -35,8 +33,13 @@ class ImageService:
 
             label_text = f"{det.label} {det.confidence:.2f}"
             cv2.putText(
-                image, label_text, (x1, y1 - 10),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2,
+                image,
+                label_text,
+                (x1, y1 - 10),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                (0, 255, 0),
+                2,
             )
 
         stem = Path(image_path).stem

@@ -1,9 +1,15 @@
-from datetime import datetime, timezone
+from __future__ import annotations
+
+from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.models.detection_item import DetectionItem
 
 
 class Detection(Base):
@@ -19,6 +25,6 @@ class Detection(Base):
         DateTime(timezone=True), server_default=func.now()
     )
 
-    items: Mapped[list["DetectionItem"]] = relationship(
+    items: Mapped[list[DetectionItem]] = relationship(
         "DetectionItem", back_populates="detection", cascade="all, delete-orphan"
     )

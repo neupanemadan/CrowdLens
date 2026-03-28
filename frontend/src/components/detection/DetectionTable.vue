@@ -55,7 +55,8 @@ table {
   font-size: 0.875rem;
 }
 
-th, td {
+th,
+td {
   text-align: left;
   padding: 0.625rem 0.75rem;
   border-bottom: 1px solid #e2e8f0;
