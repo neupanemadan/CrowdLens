@@ -8,7 +8,6 @@ import AppError from '@/components/common/AppError.vue'
 
 const store = useDetectionStore()
 const router = useRouter()
-const uploaderRef = ref<InstanceType<typeof ImageUploader> | null>(null)
 const selectedFile = ref<File | null>(null)
 
 function onFileSelected(file: File) {
@@ -32,7 +31,7 @@ async function handleUpload() {
     <h1>Upload Image</h1>
     <p class="subtitle">Upload an image to detect and count people.</p>
 
-    <ImageUploader ref="uploaderRef" @file-selected="onFileSelected" />
+    <ImageUploader @file-selected="onFileSelected" />
 
     <AppError v-if="store.error" :message="store.error" />
 
