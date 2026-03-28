@@ -89,41 +89,42 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            export AWS_REGION=ap-northeast-1
-            export ECR_REPO_NAME=vision-ai-backend
-            export IMAGE_TAG=${{ github.sha }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
 
-            # Login to ECR
-            AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-            aws ecr get-login-password --region ${AWS_REGION} | \
-              docker login --username AWS --password-stdin \
-              "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+      - name: Deploy via SSM
+        run: |
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --parameters 'commands=[
+              "ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)",
+              "ECR_HOST=$ACCOUNT_ID.dkr.ecr.ap-northeast-1.amazonaws.com",
+              "IMAGE=$ECR_HOST/vision-ai-backend:${{ github.sha }}",
+              "aws ecr get-login-password --region ap-northeast-1 | docker login --username AWS --password-stdin $ECR_HOST",
+              "docker pull $IMAGE",
+              "docker stop vision-ai-backend 2>/dev/null || true",
+              "docker rm vision-ai-backend 2>/dev/null || true",
+              "docker run -d --name vision-ai-backend --restart unless-stopped -p 8000:8000 -v /opt/vision-ai/uploads:/app/uploads -v /opt/vision-ai/data:/app/data -e DATABASE_URL=sqlite:///./data/vision_ai.db $IMAGE",
+              "sleep 3 && docker ps --filter name=vision-ai-backend"
+            ]' \
+            --query 'Command.CommandId' \
+            --output text)
 
-            ECR_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}"
+          echo "SSM Command ID: $COMMAND_ID"
 
-            # Pull new image
-            docker pull "${ECR_URI}:${IMAGE_TAG}"
+          # Wait for command to complete
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" \
+            --instance-id "${{ secrets.EC2_INSTANCE_ID }}" || true
 
-            # Stop old container and start new one
-            docker stop vision-ai-backend 2>/dev/null || true
-            docker rm vision-ai-backend 2>/dev/null || true
-
-            docker run -d \
-              --name vision-ai-backend \
-              --restart unless-stopped \
-              -p 8000:8000 \
-              -v /opt/vision-ai/uploads:/app/uploads \
-              -v /opt/vision-ai/data:/app/data \
-              -e DATABASE_URL="sqlite:///./data/vision_ai.db" \
-              "${ECR_URI}:${IMAGE_TAG}"
-
-            # Verify container is running
-            sleep 5
-            docker ps --filter "name=vision-ai-backend"
+          # Show output
+          aws ssm get-command-invocation \
+            --command-id "$COMMAND_ID" \
+            --instance-id "${{ secrets.EC2_INSTANCE_ID }}" \
+            --query '[StatusDetails, StandardOutputContent, StandardErrorContent]' \
+            --output text
