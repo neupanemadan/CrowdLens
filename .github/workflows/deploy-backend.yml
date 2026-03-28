@@ -1,0 +1,129 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-backend.yml'
+
+env:
+  AWS_REGION: ap-northeast-1
+  ECR_REPO_NAME: vision-ai-backend
+  IMAGE_TAG: ${{ github.sha }}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  lint:
+    name: Ruff Lint & Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Ruff
+        run: pip install ruff
+
+      - name: Ruff lint
+        working-directory: backend
+        run: ruff check .
+
+      - name: Ruff format check
+        working-directory: backend
+        run: ruff format --check .
+
+  build-and-push:
+    name: Build & Push to ECR
+    needs: lint
+    runs-on: ubuntu-latest
+    outputs:
+      image_uri: ${{ steps.build.outputs.image_uri }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag & push Docker image
+        id: build
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+        run: |
+          IMAGE_URI="${ECR_REGISTRY}/${ECR_REPO_NAME}:${IMAGE_TAG}"
+
+          docker build \
+            --platform linux/amd64 \
+            -t "${ECR_REPO_NAME}:${IMAGE_TAG}" \
+            -f backend/Dockerfile \
+            backend/
+
+          docker tag "${ECR_REPO_NAME}:${IMAGE_TAG}" "${IMAGE_URI}"
+          docker tag "${ECR_REPO_NAME}:${IMAGE_TAG}" "${ECR_REGISTRY}/${ECR_REPO_NAME}:latest"
+
+          docker push "${IMAGE_URI}"
+          docker push "${ECR_REGISTRY}/${ECR_REPO_NAME}:latest"
+
+          echo "image_uri=${IMAGE_URI}" >> "$GITHUB_OUTPUT"
+
+  deploy-ec2:
+    name: Deploy to EC2
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            export AWS_REGION=ap-northeast-1
+            export ECR_REPO_NAME=vision-ai-backend
+            export IMAGE_TAG=${{ github.sha }}
+
+            # Login to ECR
+            AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+            aws ecr get-login-password --region ${AWS_REGION} | \
+              docker login --username AWS --password-stdin \
+              "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+            ECR_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}"
+
+            # Pull new image
+            docker pull "${ECR_URI}:${IMAGE_TAG}"
+
+            # Stop old container and start new one
+            docker stop vision-ai-backend 2>/dev/null || true
+            docker rm vision-ai-backend 2>/dev/null || true
+
+            docker run -d \
+              --name vision-ai-backend \
+              --restart unless-stopped \
+              -p 8000:8000 \
+              -v /opt/vision-ai/uploads:/app/uploads \
+              -v /opt/vision-ai/data:/app/data \
+              -e DATABASE_URL="sqlite:///./data/vision_ai.db" \
+              "${ECR_URI}:${IMAGE_TAG}"
+
+            # Verify container is running
+            sleep 5
+            docker ps --filter "name=vision-ai-backend"

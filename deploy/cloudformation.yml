@@ -1,0 +1,156 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Vision AI Backend — minimal EC2 deployment (demo/cost-optimized)
+
+Parameters:
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Existing SSH key pair name
+    Default: softmine
+
+  InstanceType:
+    Type: String
+    Default: t3.micro
+    AllowedValues: [t2.micro, t3.micro, t3.small]
+    Description: EC2 instance type (t3.micro = free-tier eligible)
+
+  ECRRepoName:
+    Type: String
+    Default: vision-ai-backend
+
+  ImageTag:
+    Type: String
+    Default: latest
+
+Mappings:
+  # Ubuntu 22.04 LTS AMI per region (x86_64)
+  RegionAMI:
+    ap-northeast-1:
+      AMI: ami-0e467ee8344baec9e
+
+Resources:
+  # ── IAM Role for ECR Pull ────────────────────────────────────────────────
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: VisionAI-EC2-Role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref EC2Role
+
+  # ── Security Group ──────────────────────────────────────────────────────
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Vision AI Backend - SSH + API
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+          Description: SSH
+        - IpProtocol: tcp
+          FromPort: 8000
+          ToPort: 8000
+          CidrIp: 0.0.0.0/0
+          Description: Backend API
+      Tags:
+        - Key: Name
+          Value: vision-ai-sg
+
+  # ── EC2 Instance ────────────────────────────────────────────────────────
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      ImageId: !FindInMap [RegionAMI, !Ref 'AWS::Region', AMI]
+      SecurityGroupIds:
+        - !GetAtt SecurityGroup.GroupId
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 20
+            VolumeType: gp3
+      Tags:
+        - Key: Name
+          Value: vision-ai-backend
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -ex
+          exec > >(tee /var/log/user-data.log) 2>&1
+
+          # ── System updates ──────────────────────────────────────
+          apt-get update -y
+          apt-get install -y ca-certificates curl gnupg unzip
+
+          # ── Install Docker ──────────────────────────────────────
+          install -m 0755 -d /etc/apt/keyrings
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+            gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+          chmod a+r /etc/apt/keyrings/docker.gpg
+          CODENAME=$(. /etc/os-release && echo $VERSION_CODENAME)
+          ARCH=$(dpkg --print-architecture)
+          echo "deb [arch=$ARCH signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $CODENAME stable" | \
+            tee /etc/apt/sources.list.d/docker.list > /dev/null
+          apt-get update -y
+          apt-get install -y docker-ce docker-ce-cli containerd.io
+          usermod -aG docker ubuntu
+
+          # ── Install AWS CLI v2 ──────────────────────────────────
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+          unzip -q /tmp/awscliv2.zip -d /tmp
+          /tmp/aws/install
+          rm -rf /tmp/awscliv2.zip /tmp/aws
+
+          # ── Create app dirs ─────────────────────────────────────
+          mkdir -p /opt/vision-ai/uploads/originals /opt/vision-ai/uploads/annotated /opt/vision-ai/data
+          chown -R ubuntu:ubuntu /opt/vision-ai
+
+          # ── Pull & run backend container ────────────────────────
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          ECR_HOST="$ACCOUNT_ID.dkr.ecr.${AWS::Region}.amazonaws.com"
+          IMAGE="$ECR_HOST/${ECRRepoName}:${ImageTag}"
+
+          aws ecr get-login-password --region ${AWS::Region} | \
+            docker login --username AWS --password-stdin "$ECR_HOST"
+
+          docker pull "$IMAGE"
+
+          docker run -d \
+            --name vision-ai-backend \
+            --restart unless-stopped \
+            -p 8000:8000 \
+            -v /opt/vision-ai/uploads:/app/uploads \
+            -v /opt/vision-ai/data:/app/data \
+            -e DATABASE_URL="sqlite:///./data/vision_ai.db" \
+            "$IMAGE"
+
+Outputs:
+  InstanceId:
+    Value: !Ref EC2Instance
+
+  PublicIP:
+    Value: !GetAtt EC2Instance.PublicIp
+    Description: EC2 Public IP — backend at http://<IP>:8000
+
+  BackendURL:
+    Value: !Sub 'http://${EC2Instance.PublicIp}:8000'
+    Description: Backend API base URL
+
+  APIURL:
+    Value: !Sub 'http://${EC2Instance.PublicIp}:8000/api/v1'
+    Description: Backend API v1 URL (use for frontend .env)

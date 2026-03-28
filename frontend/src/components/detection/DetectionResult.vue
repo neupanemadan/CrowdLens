@@ -5,7 +5,8 @@ const props = defineProps<{
   detection: Detection
 }>()
 
-const mediaBase = import.meta.env.VITE_MEDIA_BASE_URL || 'http://localhost:8000'
+const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
+const mediaBase = apiBase.replace(/\/api\/v1\/?$/, '')
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleString()
