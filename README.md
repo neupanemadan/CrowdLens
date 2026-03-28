@@ -7,7 +7,7 @@ AI-powered person detection and counting system. Upload an image and get back th
 - **Backend:** FastAPI, SQLAlchemy, Pydantic
 - **Vision:** YOLOv8n (Ultralytics), OpenCV
 - **Database:** SQLite
-- **Frontend:** React + TypeScript + Vite *(coming soon)*
+- **Frontend:** Vue 3, TypeScript, Pinia, Axios, Vue Router
 - **Deployment:** Docker, Docker Compose
 
 ## Project Structure
@@ -28,7 +28,18 @@ vision_ai/
 │   ├── Dockerfile
 │   ├── requirements.txt
 │   └── .env.example
-├── frontend/                  # (coming soon)
+├── frontend/
+│   ├── src/
+│   │   ├── api/               # Axios client and API methods
+│   │   ├── components/        # Reusable Vue components
+│   │   ├── stores/            # Pinia state management
+│   │   ├── router/            # Vue Router configuration
+│   │   ├── types/             # TypeScript interfaces
+│   │   ├── views/             # Page-level components
+│   │   ├── App.vue            # Root component
+│   │   └── main.ts            # App bootstrap
+│   ├── package.json
+│   └── .env.example
 ├── docker-compose.yml
 └── .gitignore
 ```
@@ -42,6 +53,13 @@ Route → Service → Repository → SQLite
 ```
 
 Routes are thin. Business logic lives in services. Database access is isolated in repositories. YOLO inference is wrapped in a dedicated vision module.
+
+**Frontend:**
+```
+View → Pinia Store → API Layer (Axios) → FastAPI Backend
+```
+
+Components are split into reusable pieces. API calls are centralized. State is managed through Pinia stores.
 
 ## API Endpoints
 
@@ -57,9 +75,10 @@ Routes are thin. Business logic lives in services. Database access is isolated i
 ### Prerequisites
 
 - Python 3.9+
+- Node.js 18+
 - Docker *(optional, for containerized setup)*
 
-### Local Setup
+### Backend Setup
 
 ```bash
 cd backend
@@ -72,6 +91,17 @@ uvicorn app.main:app --reload
 
 The API will be available at `http://localhost:8000`.
 Swagger docs at `http://localhost:8000/docs`.
+
+### Frontend Setup
+
+```bash
+cd frontend
+npm install
+cp .env.example .env
+npm run dev
+```
+
+The frontend will be available at `http://localhost:5173`.
 
 ### Docker Setup
 
@@ -122,6 +152,13 @@ Response:
 | `UPLOAD_DIR` | uploads | Directory for stored images |
 | `YOLO_MODEL` | yolov8n.pt | YOLO model file |
 | `CONFIDENCE_THRESHOLD` | 0.5 | Minimum detection confidence |
+
+### Frontend
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VITE_API_BASE_URL` | http://localhost:8000/api/v1 | Backend API base URL |
+| `VITE_MEDIA_BASE_URL` | http://localhost:8000 | Backend media server URL |
 
 ## License
 
